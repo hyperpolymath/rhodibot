@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+= Rhodibot
+:toc: macro
+:toclevels: 2
+:icons: font
+
+RSR Compliance Bot for repository management and standard enforcement.
+
+image:https://img.shields.io/github/license/hyperpolymath/rhodibot[License]
+image:https://img.shields.io/crates/v/rhodibot[Crates.io]
+
+toc::[]
+
+== Overview
+
+Rhodibot is a GitHub bot that enforces https://github.com/hyperpolymath/rhodium-standard-repositories[Rhodium Standard Repository (RSR)] guidelines across the hyperpolymath organization.
+
+=== Features
+
+* **Compliance Checking** - Validates repositories against RSR requirements
+* **GitHub Integration** - Runs as a GitHub App with webhook support
+* **Check Runs** - Reports compliance status on PRs and pushes
+* **Auto-Issue Creation** - Creates RSR checklist issues for new repos
+* **Language Policy Enforcement** - Detects banned languages/tools (CCCP)
+
+== Installation
+
+=== From crates.io
+
+[source,bash]
+----
+cargo install rhodibot
+----
+
+=== From source
+
+[source,bash]
+----
+git clone https://github.com/hyperpolymath/rhodibot.git
+cd rhodibot
+cargo build --release
+----
+
+== Usage
+
+=== As a Service
+
+[source,bash]
+----
+# Set environment variables
+export GITHUB_APP_ID=123456
+export GITHUB_PRIVATE_KEY_PATH=/path/to/private-key.pem
+export GITHUB_WEBHOOK_SECRET=your-webhook-secret
+
+# Run the server
+rhodibot --port 3000
+----
+
+=== API Endpoints
+
+* `GET /` - Health check
+* `GET /health` - Health check
+* `POST /webhook` - GitHub webhook receiver
+* `GET /api/check/{owner}/{repo}` - Manual compliance check
+
+=== CLI Options
+
+[source]
+----
+rhodibot --help
+
+Usage: rhodibot [OPTIONS]
+
+Options:
+  -p, --port <PORT>                    Port to listen on [env: PORT=] [default: 3000]
+      --app-id <APP_ID>                GitHub App ID [env: GITHUB_APP_ID=]
+      --private-key-path <PATH>        Path to GitHub App private key [env: GITHUB_PRIVATE_KEY_PATH=]
+      --webhook-secret <SECRET>        Webhook secret for verification [env: GITHUB_WEBHOOK_SECRET=]
+  -h, --help                           Print help
+  -V, --version                        Print version
+----
+
+== RSR Compliance Checks
+
+=== Required Files
+
+|===
+| File | Category | Points
+
+| README.adoc | Documentation | 5
+| LICENSE.txt | Governance | 5
+| SECURITY.md | Security | 5
+| CONTRIBUTING.md | Documentation | 3
+| CODE_OF_CONDUCT.md | Governance | 3
+| .claude/CLAUDE.md | Structure | 2
+| STATE.scm | Structure | 3
+| META.scm | Structure | 3
+| ECOSYSTEM.scm | Structure | 3
+|===
+
+=== Banned Patterns (CCCP)
+
+|===
+| File | Violation
+
+| package-lock.json | npm lock file (use Deno)
+| yarn.lock | Yarn lock file (use Deno)
+| go.mod | Go module (use Rust)
+|===
+
+== Development
+
+=== Prerequisites
+
+* Rust 1.75+
+* Deno (for local webhook testing via smee)
+
+=== Building
+
+[source,bash]
+----
+cargo build
+----
+
+=== Testing
+
+[source,bash]
+----
+cargo test
+----
+
+=== Local Development with smee
+
+[source,bash]
+----
+# In terminal 1
+npx smee -u https://smee.io/your-channel -p 3000 -P /webhook
+
+# In terminal 2
+cargo run -- --port 3000
+----
+
+== Bot Trio
+
+Rhodibot is part of the hyperpolymath bot ecosystem:
+
+* **https://github.com/hyperpolymath/echidnabot[echidnabot]** - Repository health monitoring and issue triage
+* **https://github.com/hyperpolymath/oikos[oikos]** - Ecosystem orchestration and dependency management
+* **rhodibot** - RSR compliance and standard enforcement
+
+== License
+
+AGPL-3.0-or-later. See link:LICENSE.txt[LICENSE.txt] for details.
