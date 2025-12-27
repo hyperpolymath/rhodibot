@@ -56,8 +56,10 @@ pub async fn handle_push(config: &Config, body: &str) -> Result<()> {
     )
     .await?;
 
-    // Create check run
-    let conclusion = if report.percentage >= 70.0 {
+    // Create check run - fail if required checks didn't pass
+    let conclusion = if !report.required_passed {
+        "failure"
+    } else if report.percentage >= 70.0 {
         "success"
     } else if report.percentage >= 50.0 {
         "neutral"
@@ -66,12 +68,12 @@ pub async fn handle_push(config: &Config, body: &str) -> Result<()> {
     };
 
     let check_run = CreateCheckRun {
-        name: "RSR Compliance".to_string(),
+        name: format!("RSR Compliance ({})", report.policy),
         head_sha: event.after,
         status: "completed".to_string(),
         conclusion: Some(conclusion.to_string()),
         output: Some(CheckRunOutput {
-            title: format!("RSR Score: {:.0}%", report.percentage),
+            title: format!("RSR Score: {:.0}% ({})", report.percentage, report.policy),
             summary: report.summary.clone(),
             text: Some(format_report_text(&report)),
         }),
@@ -85,7 +87,7 @@ pub async fn handle_push(config: &Config, body: &str) -> Result<()> {
         )
         .await?;
 
-    info!("Created check run for push");
+    info!("Created check run for push (policy: {})", report.policy);
 
     Ok(())
 }
@@ -116,8 +118,10 @@ pub async fn handle_pull_request(config: &Config, body: &str) -> Result<()> {
     )
     .await?;
 
-    // Create check run
-    let conclusion = if report.percentage >= 70.0 {
+    // Create check run - fail if required checks didn't pass
+    let conclusion = if !report.required_passed {
+        "failure"
+    } else if report.percentage >= 70.0 {
         "success"
     } else if report.percentage >= 50.0 {
         "neutral"
@@ -126,12 +130,12 @@ pub async fn handle_pull_request(config: &Config, body: &str) -> Result<()> {
     };
 
     let check_run = CreateCheckRun {
-        name: "RSR Compliance".to_string(),
+        name: format!("RSR Compliance ({})", report.policy),
         head_sha: event.pull_request.head.sha,
         status: "completed".to_string(),
         conclusion: Some(conclusion.to_string()),
         output: Some(CheckRunOutput {
-            title: format!("RSR Score: {:.0}%", report.percentage),
+            title: format!("RSR Score: {:.0}% ({})", report.percentage, report.policy),
             summary: report.summary.clone(),
             text: Some(format_report_text(&report)),
         }),
@@ -144,6 +148,8 @@ pub async fn handle_pull_request(config: &Config, body: &str) -> Result<()> {
             &check_run,
         )
         .await?;
+
+    info!("Created check run for PR (policy: {})", report.policy);
 
     Ok(())
 }
@@ -226,6 +232,14 @@ pub async fn handle_installation(_config: &Config, body: &str) -> Result<()> {
 fn format_report_text(report: &rsr::ComplianceReport) -> String {
     let mut text = String::new();
 
+    // Policy info header
+    text.push_str(&format!("## Policy: {}\n\n", report.policy));
+    text.push_str(&format!("{}\n\n", rsr::policy_summary(report.policy)));
+
+    if !report.required_passed {
+        text.push_str("> :x: **Required checks failed** - repository does not meet minimum RSR requirements\n\n");
+    }
+
     text.push_str("## Detailed Results\n\n");
 
     let categories = [
@@ -240,13 +254,7 @@ fn format_report_text(report: &rsr::ComplianceReport) -> String {
         let cat_checks: Vec<_> = report
             .checks
             .iter()
-            .filter(|c| matches!((&c.category, &cat),
-                (rsr::CheckCategory::Documentation, rsr::CheckCategory::Documentation) |
-                (rsr::CheckCategory::Security, rsr::CheckCategory::Security) |
-                (rsr::CheckCategory::Governance, rsr::CheckCategory::Governance) |
-                (rsr::CheckCategory::Structure, rsr::CheckCategory::Structure) |
-                (rsr::CheckCategory::LanguagePolicy, rsr::CheckCategory::LanguagePolicy)
-            ))
+            .filter(|c| c.category == cat)
             .collect();
 
         if cat_checks.is_empty() {
@@ -263,10 +271,23 @@ fn format_report_text(report: &rsr::ComplianceReport) -> String {
                 rsr::CheckStatus::Skip => ":fast_forward:",
             };
 
-            text.push_str(&format!(
-                "- {} **{}**: {} ({}/{})\n",
-                icon, check.name, check.message, check.points, check.max_points
-            ));
+            let severity_badge = match check.severity {
+                rsr::Severity::Required => "[required]",
+                rsr::Severity::Recommended => "[recommended]",
+                rsr::Severity::Optional => "[optional]",
+            };
+
+            if check.max_points > 0 {
+                text.push_str(&format!(
+                    "- {} **{}** {}: {} ({}/{})\n",
+                    icon, check.name, severity_badge, check.message, check.points, check.max_points
+                ));
+            } else {
+                text.push_str(&format!(
+                    "- {} **{}** {}: {}\n",
+                    icon, check.name, severity_badge, check.message
+                ));
+            }
         }
 
         text.push('\n');

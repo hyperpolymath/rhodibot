@@ -83,6 +83,28 @@ impl GitHubClient {
             .unwrap_or(false)
     }
 
+    /// Get file content (decoded from base64)
+    pub async fn get_file_content(&self, owner: &str, repo: &str, path: &str) -> Result<String> {
+        let url = format!("{}/repos/{}/{}/contents/{}", self.base_url, owner, repo, path);
+        let mut request = self.client.get(&url);
+
+        if let Some(ref token) = self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request
+            .header("Accept", "application/vnd.github.raw+json")
+            .header("User-Agent", "rhodibot")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to get file content: {}", response.status());
+        }
+
+        Ok(response.text().await?)
+    }
+
     /// Create an issue
     pub async fn create_issue(
         &self,
