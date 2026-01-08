@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Justfile - hyperpolymath standard task runner
+# rhodibot - Justfile Task Runner
+#
+# IMPORTANT: This file MUST be named "Justfile" (capital J) for RSR compliance.
 
 default:
     @just --list
