@@ -28,6 +28,7 @@ Rhodibot is a GitHub bot that enforces https://github.com/hyperpolymath/rhodium-
 * **Check Runs** - Reports compliance status on PRs and pushes
 * **Auto-Issue Creation** - Creates RSR checklist issues for new repos
 * **Language Policy Enforcement** - Detects banned languages/tools (CCCP)
+* **CII Badge Registration** - Automates OpenSSF Best Practices badge registration for eligible repos
 
 == Installation
 
